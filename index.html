@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="极简待办清单 —— 纯原生 HTML/CSS/JS 实现的单文件 To-Do 小工具" />
+<title>极简待办 · To-Do List</title>
+<style>
+  /* ==================== 1. 设计变量 ==================== */
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1b1e23;
+    --muted: #8a909b;
+    --line: #eceef3;
+    --accent: #3b6cff;
+    --accent-dark: #2f5be0;
+    --danger: #e5484d;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* ==================== 2. 页面底板 ==================== */
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(120% 100% at 50% 0%, #ffffff 0%, var(--bg) 55%, #eef1f6 100%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ==================== 3. 卡片容器 ==================== */
+  .app {
+    width: 100%;
+    max-width: 480px;
+    padding: 28px 26px 16px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04),
+                0 14px 36px -10px rgba(16, 24, 40, 0.12);
+  }
+
+  .app__title {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .app__hint {
+    margin: 0 0 20px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ==================== 4. 输入区 ==================== */
+  .composer {
+    display: flex;
+    gap: 10px;
+  }
+
+  .composer input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text);
+    background: #fafbfc;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: background .18s, border-color .18s, box-shadow .18s;
+  }
+
+  .composer input::placeholder { color: #b4b9c3; }
+
+  .composer input:focus {
+    background: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59, 108, 255, .14);
+  }
+
+  .composer button {
+    flex: none;
+    height: 44px;
+    padding: 0 18px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .18s, transform .1s;
+  }
+
+  .composer button:hover { background: var(--accent-dark); }
+  .composer button:active { transform: scale(.97); }
+
+  /* ==================== 5. 任务列表 ==================== */
+  .list {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 2px;
+    border-bottom: 1px solid var(--line);
+    animation: item-in .18s ease-out;
+  }
+
+  .item:last-child { border-bottom: 0; }
+
+  @keyframes item-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .item input[type="checkbox"] {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .item__text {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    transition: color .16s;
+  }
+
+  /* 已完成状态 */
+  .item.is-done .item__text {
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  .del {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .16s, background .16s, color .16s;
+  }
+
+  .item:hover .del,
+  .item:focus-within .del { opacity: 1; }
+
+  .del:hover {
+    color: var(--danger);
+    background: rgba(229, 72, 77, .1);
+  }
+
+  /* 触屏设备没有 hover，删除按钮常驻 */
+  @media (hover: none) {
+    .del { opacity: 1; }
+  }
+
+  /* ==================== 6. 空状态 ==================== */
+  .empty {
+    margin: 26px 0 22px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  /* ==================== 7. 底部统计 ==================== */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .link-btn {
+    padding: 6px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--accent);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .18s, color .18s;
+  }
+
+  .link-btn:hover:not(:disabled) { background: rgba(59, 108, 255, .08); }
+
+  .link-btn:disabled {
+    color: #c4c8d1;
+    cursor: default;
+  }
+
+  /* ==================== 8. 响应式：手机端卡片铺满屏幕 ==================== */
+  @media (max-width: 520px) {
+    body {
+      padding: 0;
+      align-items: stretch;
+      background: var(--card);
+    }
+
+    .app {
+      max-width: none;
+      min-height: 100vh;
+      padding: 28px 18px calc(16px + env(safe-area-inset-bottom));
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .app__title { font-size: 19px; }
+    .composer button { padding: 0 16px; }
+  }
+
+  /* 尊重用户的「减少动效」偏好 */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="app">
+    <h1 class="app__title">待办清单</h1>
+    <p class="app__hint">把要做的事写下来，然后一件件划掉。</p>
+
+    <!-- 输入区：用 form 包裹，天然支持回车提交 -->
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="input" type="text" maxlength="80" placeholder="今天要做什么？" aria-label="输入新任务" />
+      <button type="submit">添加</button>
+    </form>
+
+    <!-- 任务列表：由 JS 根据 state 渲染，不做静态写死 -->
+    <ul class="list" id="list" aria-label="待办任务列表"></ul>
+
+    <!-- 空状态提示 -->
+    <p class="empty" id="empty">还没有任务，添加第一件小事吧。</p>
+
+    <!-- 底部统计与批量操作 -->
+    <footer class="footer">
+      <span id="count" aria-live="polite">共 0 项 · 已完成 0 项</span>
+      <button type="button" class="link-btn" id="clear">清除已完成</button>
+    </footer>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+   * 1. 常量与状态
+   * ------------------------------------------------------------
+   * 单一数据源原则：UI 永远是 state 的投影。
+   * 任何交互都遵循「修改 state → 写入 localStorage → 重新渲染」。
+   * ============================================================ */
+  const STORAGE_KEY = 'minimal-todo-v1';
+  const MAX_LENGTH = 80;
+
+  const state = {
+    // 结构：[{ id: string, text: string, done: boolean }]
+    todos: loadTodos()
+  };
+
+  /* ============================================================
+   * 2. DOM 引用（集中管理，避免重复查询）
+   * ============================================================ */
+  const els = {
+    form:  document.getElementById('composer'),
+    input: document.getElementById('input'),
+    list:  document.getElementById('list'),
+    empty: document.getElementById('empty'),
+    count: document.getElementById('count'),
+    clear: document.getElementById('clear')
+  };
+
+  /* ============================================================
+   * 3. 数据持久化：localStorage 读写（含容错）
+   * ============================================================ */
+  function loadTodos() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+
+      // 防御性处理：过滤掉结构异常的脏数据，避免一条坏数据搞崩整个列表
+      return parsed
+        .filter(item => item && typeof item.text === 'string')
+        .map(item => ({
+          id: typeof item.id === 'string' && item.id ? item.id : createId(),
+          text: item.text.slice(0, MAX_LENGTH),
+          done: Boolean(item.done)
+        }));
+    } catch (err) {
+      console.warn('读取本地数据失败，已回退为空列表：', err);
+      return [];
+    }
+  }
+
+  function saveTodos() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.todos));
+    } catch (err) {
+      // 隐私模式 / 存储空间已满时会抛错，此处降级为「仅当前会话有效」
+      console.warn('写入本地数据失败，本次修改可能不会被保存：', err);
+    }
+  }
+
+  /* ============================================================
+   * 4. 渲染：把 state 投影成 DOM
+   * ============================================================ */
+  function render() {
+    const { todos } = state;
+
+    // 重建列表（数据量很小，整表重绘最直观、最不容易出 bug）
+    els.list.textContent = '';
+
+    todos.forEach(todo => {
+      els.list.appendChild(createItem(todo));
+    });
+
+    // 空状态
+    els.empty.hidden = todos.length > 0;
+
+    // 底部统计
+    const doneCount = todos.filter(todo => todo.done).length;
+    els.count.textContent = '共 ' + todos.length + ' 项 · 已完成 ' + doneCount + ' 项';
+
+    // 没有已完成任务时，清除按钮置灰
+    els.clear.disabled = doneCount === 0;
+  }
+
+  // 创建单条任务的 DOM 节点
+  function createItem(todo) {
+    const li = document.createElement('li');
+    li.className = todo.done ? 'item is-done' : 'item';
+    li.dataset.id = todo.id;
+
+    // 勾选框
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = todo.done;
+    checkbox.setAttribute('aria-label', (todo.done ? '标记为未完成：' : '标记为已完成：') + todo.text);
+
+    // 任务文本：用 textContent 而不是 innerHTML，天然免疫 XSS
+    const text = document.createElement('span');
+    text.className = 'item__text';
+    text.textContent = todo.text;
+
+    // 删除按钮
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = '删除这条任务';
+    del.setAttribute('aria-label', '删除：' + todo.text);
+
+    li.append(checkbox, text, del);
+    return li;
+  }
+
+  /* ============================================================
+   * 5. 业务操作：只改 state，渲染交给 commit
+   * ============================================================ */
+  function addTodo(rawText) {
+    const text = rawText.trim();
+    if (!text) {
+      els.input.focus();
+      return;
+    }
+
+    state.todos.push({
+      id: createId(),
+      text: text.slice(0, MAX_LENGTH),
+      done: false
+    });
+    commit();
+  }
+
+  function toggleTodo(id) {
+    const todo = state.todos.find(item => item.id === id);
+    if (!todo) return;
+
+    todo.done = !todo.done;
+    commit();
+  }
+
+  function removeTodo(id) {
+    state.todos = state.todos.filter(item => item.id !== id);
+    commit();
+  }
+
+  function clearCompleted() {
+    state.todos = state.todos.filter(item => !item.done);
+    commit();
+  }
+
+  // 统一提交：存盘 + 重渲染
+  function commit() {
+    saveTodos();
+    render();
+  }
+
+  // 生成唯一 id：时间戳 + 随机串，足够本场景使用
+  function createId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ============================================================
+   * 6. 事件绑定
+   * ============================================================ */
+  // 添加：回车或点击「添加」都走 submit
+  els.form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    addTodo(els.input.value);
+    els.input.value = '';
+    els.input.focus();
+  });
+
+  // Esc 清空输入框
+  els.input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') els.input.value = '';
+  });
+
+  // 勾选完成：事件委托，新渲染的节点无需重复绑定
+  els.list.addEventListener('change', function (e) {
+    const item = e.target.closest('.item');
+    if (item) toggleTodo(item.dataset.id);
+  });
+
+  // 删除单条：同样使用事件委托
+  els.list.addEventListener('click', function (e) {
+    if (!e.target.closest('.del')) return;
+    const item = e.target.closest('.item');
+    if (item) removeTodo(item.dataset.id);
+  });
+
+  // 一键清除已完成
+  els.clear.addEventListener('click', clearCompleted);
+
+  // 多标签页同步：其他标签页改动了数据时，本页自动刷新
+  window.addEventListener('storage', function (e) {
+    if (e.key !== STORAGE_KEY) return;
+    state.todos = loadTodos();
+    render();
+  });
+
+  /* ============================================================
+   * 7. 初始化
+   * ============================================================ */
+  render();
+
+  // 桌面端自动聚焦输入框；移动端不聚焦，避免一进页面就弹起键盘
+  if (window.matchMedia('(hover: hover)').matches) {
+    els.input.focus();
+  }
+})();
+</script>
+</body>
+</html>
